@@ -1,9 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/gorilla/mux"
+	"golang.org/x/exp/slices"
+	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 type KeyValueDB struct {
@@ -25,6 +32,10 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error with arguments: %s\n", err)
 	}
+
+	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	start(rootCtx)
 }
 
 func checkArgs(cmd string) error {
@@ -38,4 +49,15 @@ func checkArgs(cmd string) error {
 		return fmt.Errorf("%s is not a valid command, use set, get, del or ts instead.", cmd)
 	}
 	return nil
+}
+
+func start(ctx context.Context) {
+	r := mux.NewRouter()
+	r.HandleFunc("/", NewHandler)
+
+	log.Fatal(http.ListenAndServe(":8000", r))
+}
+
+func NewHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Gorilla!\n"))
 }
